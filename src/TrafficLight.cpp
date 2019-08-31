@@ -81,26 +81,54 @@ void TrafficLight::cycleThroughPhases()
     // to the message queue using move semantics. The cycle duration should be a random value between 4 and 6 seconds.
     // Also, the while-loop should use std::this_thread::sleep_for to wait 1ms between two cycles.
 
+    //Initialize stopwatch
+    std::chrono::time_point<std::chrono::system_clock> lastUpdate;
+    lastUpdate = std::chrono::system_clock::now();
+
     std::random_device rd;
     std::mt19937 gen(rd());
-    std::uniform_real_distribution<double> dist(4.0, 6.0);
-    int rand = dist(gen) * 1000;
+    std::uniform_real_distribution<double> distr(4000.0, 6000.0);
+
+    srand(time(NULL));
+    int rand_cycle_duration = distr(gen);
 
     while (true)
     {
+        // Sleep for 1 millisecond at each iteration
         std::this_thread::sleep_for(std::chrono::milliseconds(1));
 
-        // std::chrono::high_resolution_clock::time_point start = std::chrono::high_resolution_clock::now();
+        long duration = std::chrono::duration_cast<std::chrono::milliseconds>(
+            std::chrono::system_clock::now() - lastUpdate).count();
 
-        _currentPhase = TrafficLightPhase::green;
+        if (duration >= rand_cycle_duration){
 
-        std::async(std::launch::async, &MessageQueue<TrafficLightPhase>::send, _MessageQueue, std::move(_currentPhase));
+            //Adjust cycle length for next loop
+            srand(time(NULL));
+            rand_cycle_duration = distr(gen);
+            
+            //Toggle current phase of the traffic light
+            if(getCurrentPhase() == TrafficLightPhase::red) {
+                _currentPhase = TrafficLightPhase::green;
+            }
+            else {
+                _currentPhase = TrafficLightPhase::red;
+            }
+            //send update method to message queue 
+            _MessageQueue->send(std::move(_currentPhase));
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(rand));
+            //reset stop watch for next cycle
+            lastUpdate = std::chrono::system_clock::now();
+        }
 
-        _currentPhase = TrafficLightPhase::red;
+        //_currentPhase = TrafficLightPhase::green;
 
-        std::this_thread::sleep_for(std::chrono::milliseconds(rand));
+        //std::async(std::launch::async, &MessageQueue<TrafficLightPhase>::send, _MessageQueue, std::move(_currentPhase));
+
+        //std::this_thread::sleep_for(std::chrono::milliseconds(rand));
+
+        //_currentPhase = TrafficLightPhase::red;
+
+        //std::this_thread::sleep_for(std::chrono::milliseconds(rand));
 
         // std::chrono::high_resolution_clock::time_point finish = std::chrono::high_resolution_clock::now();
 
